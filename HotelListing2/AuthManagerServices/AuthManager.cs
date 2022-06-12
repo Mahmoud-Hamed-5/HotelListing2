@@ -39,7 +39,7 @@ namespace HotelListing2.AuthManagerServices
         private JwtSecurityToken GenerateTokenOptions(SigningCredentials signingCredentials, List<Claim> claims)
         {
             var jwtSettings = _configuration.GetSection("JWT");
-            var expiration = DateTime.Now.AddMinutes(
+            var expiration = DateTime.Now.AddHours(
                 Convert.ToDouble(jwtSettings.GetSection("lifetime").Value));
             var token = new JwtSecurityToken(
                 issuer: jwtSettings.GetSection("Issuer").Value,

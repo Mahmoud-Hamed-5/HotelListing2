@@ -30,6 +30,7 @@ namespace HotelListing2.Controllers
 
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GetHotels()
         {
@@ -50,6 +51,7 @@ namespace HotelListing2.Controllers
 
         [HttpGet("{id:int}", Name = "GetHotel")]
         [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GetHotel(int id)
         {
@@ -68,13 +70,17 @@ namespace HotelListing2.Controllers
 
 
 
+        [Authorize(Roles = "Administrator")]
         [HttpPost]
-        [Route("CreateHotel")]
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> CreateHotel([FromBody] CreateHotelDTO hotelDTO)
         {
             _logger.LogInformation($"Creating Hotel {hotelDTO.Name}");
             if (!ModelState.IsValid)
             {
+                _logger.LogError($"Invalid POST Attempt in {nameof(CreateHotel)}");
                 return BadRequest(ModelState);
             }       
 
@@ -101,5 +107,94 @@ namespace HotelListing2.Controllers
                 return Problem($"Somthing went wrong in the {nameof(CreateHotel)}", statusCode: 500);
             }
         }
+
+
+
+
+        [Authorize(Roles = "Administrator")]       
+        [HttpPut("{id:int}")]      
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> UpdateHotel(int id, [FromBody] UpdateHotelDTO hotelDTO)
+        {
+            _logger.LogInformation($"Updating Hotel {hotelDTO.Name}");
+            if (!ModelState.IsValid || id < 1)
+            {
+                _logger.LogError($"Invalid UPDATE Attempt in {nameof(UpdateHotel)}");
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                var country_id = hotelDTO.CountryId;
+                var country = await _unitOfWork.Countries.Get(q => q.Id == country_id);
+                if (country == null)
+                {
+                    _logger.LogInformation($"Invalid Country ID : {country_id}");
+                    return Problem($"Invalid Country ID : {country_id}");
+                }
+
+                var hotel = await _unitOfWork.Hotels.Get(q => q.Id == id);
+                if (hotel == null)
+                {
+                    _logger.LogError($"Invalid UPDATE Attempt in {nameof(UpdateHotel)}");
+                    return BadRequest("Submitted data is invalid, Provide a valid Hotel-id");
+                }
+
+                _mapper.Map(hotelDTO, hotel);
+
+                _unitOfWork.Hotels.Update(hotel);
+                await _unitOfWork.Save();
+
+                return NoContent();
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Somthing went wrong in the {nameof(CreateHotel)}");
+                return Problem($"Somthing went wrong in the {nameof(CreateHotel)}", statusCode: 500);
+            }
+        }
+
+
+
+        [Authorize(Roles = "Administrator")]
+        [HttpDelete("{id:int}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> DeleteHotel(int id)
+        {
+            _logger.LogInformation($"Deleting Hotel with id: {id}");
+            if (id < 1)
+            {
+                _logger.LogError($"Invalid UPDATE Attempt in {nameof(UpdateHotel)}");
+                return BadRequest(ModelState);
+            }
+
+            try
+            {               
+                var hotel = await _unitOfWork.Hotels.Get(q => q.Id == id);                          
+                if (hotel == null)
+                {
+                    _logger.LogError($"Invalid DELETE Attempt in {nameof(DeleteHotel)}");
+                    return BadRequest("Submitted data is invalid, Provide a valid Hotel-id");
+                }
+
+                await _unitOfWork.Hotels.Delete(id);
+                await _unitOfWork.Save();
+
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Somthing went wrong in the {nameof(DeleteHotel)}");
+                return Problem($"Somthing went wrong in the {nameof(DeleteHotel)}", statusCode: 500);
+            }
+        }
+
+
+
     }
 }
