@@ -8,6 +8,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
+using HotelListing2.Data;
 
 namespace HotelListing2.Controllers
 {
@@ -27,6 +29,8 @@ namespace HotelListing2.Controllers
         }
 
         [HttpGet]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GetHotels()
         {
             try
@@ -42,7 +46,11 @@ namespace HotelListing2.Controllers
             }
         }
 
-        [HttpGet("id:int")]
+
+
+        [HttpGet("{id:int}", Name = "GetHotel")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GetHotel(int id)
         {
             try
@@ -55,6 +63,42 @@ namespace HotelListing2.Controllers
             {
                 _logger.LogError(ex, $"Somthing went wrong in the {nameof(GetHotel)}");
                 return StatusCode(500, "Internal server error, please try again later");
+            }
+        }
+
+
+
+        [HttpPost]
+        [Route("CreateHotel")]
+        public async Task<IActionResult> CreateHotel([FromBody] CreateHotelDTO hotelDTO)
+        {
+            _logger.LogInformation($"Creating Hotel {hotelDTO.Name}");
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }       
+
+            try
+            {
+                var country_id = hotelDTO.CountryId;
+                var country = await _unitOfWork.Countries.Get(q => q.Id == country_id);
+                if (country == null)
+                {
+                    _logger.LogInformation($"Invalid Country ID : {country_id}");
+                    return Problem($"Invalid Country ID : {country_id}");
+                }
+
+                var hotel = _mapper.Map<Hotel>(hotelDTO);
+                await _unitOfWork.Hotels.Insert(hotel);
+                await _unitOfWork.Save();
+
+                return CreatedAtRoute("GetHotel",new {id = hotel.Id }, hotel);
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Somthing went wrong in the {nameof(CreateHotel)}");
+                return Problem($"Somthing went wrong in the {nameof(CreateHotel)}", statusCode: 500);
             }
         }
     }

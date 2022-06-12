@@ -17,6 +17,7 @@ using AutoMapper;
 using HotelListing2.Configurations;
 using HotelListing2.IRepository;
 using HotelListing2.Repository;
+using HotelListing2.AuthManagerServices;
 
 namespace HotelListing2
 {
@@ -38,6 +39,11 @@ namespace HotelListing2
 
             );
 
+            services.AddAuthentication();
+            
+            services.ConfigureIdentity();
+            services.ConfigureJWT(Configuration);
+
             services.AddCors(o => {
                 o.AddPolicy("AllowAll", builder =>
                     builder.AllowAnyOrigin()
@@ -48,6 +54,7 @@ namespace HotelListing2
             services.AddAutoMapper(typeof(MapperInitilizer));
 
             services.AddTransient<IUnitOfWork, UnitOfWork>();
+            services.AddScoped<IAuthManager, AuthManager>();
 
             services.AddSwaggerGen(c =>
             {
@@ -74,6 +81,7 @@ namespace HotelListing2
 
             app.UseRouting();
 
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>

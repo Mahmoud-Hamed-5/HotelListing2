@@ -1,6 +1,9 @@
 ﻿using AutoMapper;
+using HotelListing2.Data;
 using HotelListing2.IRepository;
 using HotelListing2.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
@@ -24,7 +27,10 @@ namespace HotelListing2.Controllers
             _mapper = mapper;
         }
 
+
         [HttpGet]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GetCountries()
         {
             try
@@ -40,7 +46,11 @@ namespace HotelListing2.Controllers
             }
         }
 
-        [HttpGet("{id:int}")]
+
+
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        [HttpGet("{id:int}", Name = "GetCountry")]
         public async Task<IActionResult> GetCountry(int id)
         {
             try
@@ -56,5 +66,36 @@ namespace HotelListing2.Controllers
             }
         }
 
+
+
+        [HttpPost]
+        [Route("CreateCountry")]
+        public async Task<IActionResult> CreateCountry([FromBody] CreateCountryDTO countryDTO)
+        {
+            _logger.LogInformation($"Creating Country {countryDTO.Name}");
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {               
+                var country = _mapper.Map<Country>(countryDTO);
+                await _unitOfWork.Countries.Insert(country);
+                await _unitOfWork.Save();
+
+                return CreatedAtRoute("GetCountry", new { id = country.Id }, country);
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Somthing went wrong in the {nameof(CreateCountry)}");
+                return Problem($"Somthing went wrong in the {nameof(CreateCountry)}", statusCode: 500);
+            }
+        }
+
+
     }
+
 }
+
